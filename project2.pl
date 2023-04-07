@@ -5,14 +5,13 @@
 :- use_module(library(http/json)).
 
 query_api(_, Result) :- 
-    http_get("https://jsonplaceholder.typicode.com/todos", Response, []),
+    http_get("https://pokeapi.co/api/v2/pokemon/dialga/encounters", Response, []),
     atom_json_dict(Response, Data, []),
     write(Data),
-    getAll(Data, Result).
+    getAllLocations(Data, Result).
 
 getAll([], []).
-getAll([Object | T], [Value | ResultsSoFar]) :-
-    Value = Object.userId,
+getAll([Object | T], [Object.userId | ResultsSoFar]) :-
     getAll(T, ResultsSoFar).
 
 
