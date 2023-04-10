@@ -1,18 +1,36 @@
 :- use_module(library(http/http_client)).
 :- use_module(library(http/json)).
-:- dynamic location/2.
+:- dynamic location/2, type/2.
 
-combine_request(Pokemon, Request) :-
-    string_concat("https://pokeapi.co/api/v2/pokemon/", Pokemon, Request1),
-    string_concat(Request1, "/encounters", Request).
+add_pokemon(Pokemon) :-
+    query_locations(Pokemon),
+    query_types(Pokemon).
 
-query_api(Pokemon, Result) :- 
-    combine_request(Pokemon, Request),
+query_locations(Pokemon) :-
+    atomics_to_string(["https://pokeapi.co/api/v2/pokemon/", Pokemon, "/encounters"], Request),
     http_get(Request, Response, []),
     atom_json_dict(Response, Data, []),
     getAllLocations(Data, AllLocations),
-    insertLocationIntoKnowledgeBase(Pokemon, AllLocations),
-    Result = AllLocations.
+    insertLocationIntoKnowledgeBase(Pokemon, AllLocations).
+
+query_types(Pokemon) :-
+    atomics_to_string(["https://pokeapi.co/api/v2/pokemon/", Pokemon], Request),
+    http_get(Request, Response, []),
+    atom_json_dict(Response, Data, []),
+    getAllTypes(Data.types, AllTypes),
+    insertTypeIntoKnowledgeBase(Pokemon, AllTypes).
+
+getAllTypes([], []).
+getAllTypes([Type | T], [Type.type.name | ResultsSoFar]) :-
+    getAllTypes(T, ResultsSoFar).
+
+insertTypeIntoKnowledgeBase(_, []).
+insertTypeIntoKnowledgeBase(Pokemon, [TypeAsString | T]) :- 
+    type(Pokemon, TypeAsString), !,
+    insertLocationIntoKnowledgeBase(Pokemon, T).
+insertTypeIntoKnowledgeBase(Pokemon, [TypeAsString | T]) :- 
+    assertz(type(Pokemon, TypeAsString)),
+    insertTypeIntoKnowledgeBase(Pokemon, T).
 
 getAllLocations([], []).
 getAllLocations([OneLocation | T], [OneLocation.location_area.name | ResultsSoFar]) :-
@@ -26,24 +44,18 @@ insertLocationIntoKnowledgeBase(Pokemon, [LocationAsString | T]) :-
     assertz(location(Pokemon, LocationAsString)),
     insertLocationIntoKnowledgeBase(Pokemon, T).
 
-format_answer(Pokemon, Locations, Ans) :-
-    strings_concat(Locations, LocString),
-    string_concat(Pokemon, " can be found at the ", Ans1),
-    string_concat(Ans1, LocString, Ans).
+get_location(Pokemon, Location) :- location(Pokemon, Location).
+get_location(Pokemon, Location) :- not(location(Pokemon, Location)), add_pokemon(Pokemon), location(Pokemon, Location).
 
-% Concatenates a list of locations to a String
-strings_concat([], "").
-strings_concat([H, T], Str) :-
-    string_concat(" and the ", T, Str0),
-    string_concat(H, Str0, Str), !.
-strings_concat([H|T], Str) :-
-    strings_concat(T, Str0),
-    string_concat(", the ", Str0, Str1),
-    string_concat(H, Str1, Str).
+not(P) :- P, !, fail ; true.
 
-% ask(Q, A) gives answer A to question Q
-ask(Q, A) :-
-    question(Q, A).
+preposition("at").
+preposition("in").
+preposition("on").
+
+pp([L0| L1], Ind) :-
+    preposition(L0),
+    noun_phrase(L1, Ind).
 
 % Determiners are ignored and do not provide extra constraints
 det(["the" | L], L).
@@ -57,20 +69,19 @@ noun_phrase(L0, Ind) :-
 
 question(["Where", "is", L0], Ind) :-
     string_lower(L0, L1),
-    query_api(L1, Locations),
-    format_answer(L0, Locations, Ind).
+    get_location(L1, Ind).
 
-question(["What", "is", "at"| L0], Ind) :-
-    noun_phrase(L0, Ind).
+question(["What", "is" | L0], Ind) :-
+    pp(L0, Ind).
 
-question(["What", "Pokemon", "is", "at" | L0], Ind) :-
-    noun_phrase(L0, Ind).
+question(["What", "Pokemon", "is" | L0], Ind) :-
+    pp(L0, Ind).
 
 q(Ans) :-
     write("Ask me: "), flush_output(current_output),
     read_line_to_string(user_input, St),
     split_string(St, " ", " ,?.!-", Ln), % ignore punctuation
-    ask(Ln, Ans).
+    question(Ln, Ans).
 q(Ans) :-
     write("No more answers\n"),
     write("Would you like to exit? "), flush_output(current_output),
@@ -80,4 +91,3 @@ q(Ans) :-
 
 q("yes", _).
 q("no", Ans) :- q(Ans).
-
