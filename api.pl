@@ -1,36 +1,75 @@
-:- module(api, [getLocationFromKBOrQuery/2, query_all_pokemon_from_type/2]).
+:- module(api, [getLocationFromKBOrQuery/2, getTypeFromKBOrQuery/2, queryAllPokemonFromType/2, queryAllPokemonFromLocation/2]).
 :- dynamic location/2, type/2.
 
-query_locations_of_pokemon(Pokemon) :-
+
+/* ==== API CALLS === */ 
+% Given a pokemon, retreive all locations where it can be found 
+queryLocationsOfPokemon(Pokemon) :-
     atomics_to_string(["https://pokeapi.co/api/v2/pokemon/", Pokemon, "/encounters"], Request),
     http_get(Request, Response, []),
     atom_json_dict(Response, Data, []),
-    getAllLocationsForOnePokemon(Data, AllLocations),
+    parseLocationsForOnePokemon(Data, AllLocations),
     insertLocationIntoKnowledgeBase(Pokemon, AllLocations).
 
-query_types_of_pokemon(Pokemon) :-
+% Given a pokemon, retreive its types
+queryTypesOfPokemon(Pokemon) :-
     atomics_to_string(["https://pokeapi.co/api/v2/pokemon/", Pokemon], Request),
     http_get(Request, Response, []),
     atom_json_dict(Response, Data, []),
-    getAllTypesForOnePokemon(Data.types, AllTypes),
+    parseTypesForOnePokemon(Data.types, AllTypes),
     insertTypeIntoKnowledgeBase(Pokemon, AllTypes).
 
-query_all_pokemon_from_type(Type, ListOfPokemons) :- 
+% Given a location, find all pokemons in that location
+queryAllPokemonFromLocation(Location, ListOfPokemons) :- 
+    atomics_to_string(["https://pokeapi.co/api/v2/location-area/", Location], Request),
+    http_get(Request, Response, []),
+    atom_json_dict(Response, Data, []),
+    parseAllPokemonFromLocation(Data.pokemon_encounters, ListOfPokemons).
+
+% Given a type, find all pokemons of that type
+queryAllPokemonFromType(Type, ListOfPokemons) :- 
     atomics_to_string(["https://pokeapi.co/api/v2/type/", Type], Request),
     http_get(Request, Response, []),
     atom_json_dict(Response, Data, []),
-    getAllPokemonFromType(Data.pokemon, ListOfPokemons).
+    parseAllPokemonFromType(Data.pokemon, ListOfPokemons).
 
 
 
-getAllPokemonFromType([], []).
-getAllPokemonFromType([Pokemon | RestOfList], [Pokemon.pokemon.name | ResultsSoFar]) :- 
-    getAllPokemonFromType(RestOfList, ResultsSoFar).
+/* === Check if KB has the info first before using http get === */ 
 
-getAllTypesForOnePokemon([], []).
-getAllTypesForOnePokemon([Type | T], [Type.type.name | ResultsSoFar]) :-
-    getAllTypesForOnePokemon(T, ResultsSoFar).
+getLocationFromKBOrQuery(Pokemon, Location) :- location(Pokemon, Location).
+getLocationFromKBOrQuery(Pokemon, Location) :- not(location(Pokemon, Location)), addPokemonToKB(Pokemon), location(Pokemon, Location).
+getTypeFromKBOrQuery(Pokemon, Type) :- type(Pokemon, Type).
+getTypeFromKBOrQuery(Pokemon, Type) :- not(type(Pokemon, Type)), addPokemonToKB(Pokemon), type(Pokemon, Type).
 
+addPokemonToKB(Pokemon) :-
+    queryLocationsOfPokemon(Pokemon),
+    queryTypesOfPokemon(Pokemon).
+
+not(P) :- P, !, fail ; true.
+
+
+
+/* === PARSING API RESPONSES === */
+
+parseLocationsForOnePokemon([], []).
+parseLocationsForOnePokemon([OneLocation | T], [OneLocation.location_area.name | ResultsSoFar]) :-
+parseLocationsForOnePokemon(T, ResultsSoFar).
+
+parseTypesForOnePokemon([], []).
+parseTypesForOnePokemon([Type | T], [Type.type.name | ResultsSoFar]) :-
+    parseTypesForOnePokemon(T, ResultsSoFar).
+
+parseAllPokemonFromType([], []).
+parseAllPokemonFromType([Pokemon | RestOfList], [Pokemon.pokemon.name | ResultsSoFar]) :- 
+    parseAllPokemonFromType(RestOfList, ResultsSoFar).
+
+parseAllPokemonFromLocation([], []). 
+parseAllPokemonFromLocation([Pokemon | RestOfList], [Pokemon.pokemon.name | ResultsSoFar]) :- 
+    parseAllPokemonFromLocation(RestOfList, ResultsSoFar).
+
+
+/* Inserts into KB for performance improvement (removes redundant http gets) */
 insertTypeIntoKnowledgeBase(_, []).
 insertTypeIntoKnowledgeBase(Pokemon, [TypeAsString | T]) :- 
     type(Pokemon, TypeAsString), !,
@@ -38,10 +77,6 @@ insertTypeIntoKnowledgeBase(Pokemon, [TypeAsString | T]) :-
 insertTypeIntoKnowledgeBase(Pokemon, [TypeAsString | T]) :- 
     assertz(type(Pokemon, TypeAsString)),
     insertTypeIntoKnowledgeBase(Pokemon, T).
-
-getAllLocationsForOnePokemon([], []).
-getAllLocationsForOnePokemon([OneLocation | T], [OneLocation.location_area.name | ResultsSoFar]) :-
-    getAllLocationsForOnePokemon(T, ResultsSoFar).
 
 insertLocationIntoKnowledgeBase(_, []).
 insertLocationIntoKnowledgeBase(Pokemon, [LocationAsString | T]) :- 
@@ -51,7 +86,4 @@ insertLocationIntoKnowledgeBase(Pokemon, [LocationAsString | T]) :-
     assertz(location(Pokemon, LocationAsString)),
     insertLocationIntoKnowledgeBase(Pokemon, T).
 
-getLocationFromKBOrQuery(Pokemon, Location) :- location(Pokemon, Location).
-getLocationFromKBOrQuery(Pokemon, Location) :- not(location(Pokemon, Location)), add_pokemon(Pokemon), location(Pokemon, Location).
 
-not(P) :- P, !, fail ; true.
