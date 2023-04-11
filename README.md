@@ -2,10 +2,10 @@
 
 ## Steps to run: 
 
-`[api].` 
-`[query_question].`
-`[pokedex].`  
-`start(Ans).`  
+`[api].` \
+`[query_question].`\
+`[pokedex].`  \
+`start(Ans).`  \
 
 ## Questions you can ask: 
 
