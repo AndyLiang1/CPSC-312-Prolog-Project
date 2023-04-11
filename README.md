@@ -5,7 +5,7 @@
 `[api].` \
 `[query_question].`\
 `[pokedex].`  \
-`start(Ans).`  \
+`start(Ans).`  
 
 ## Questions you can ask: 
 
