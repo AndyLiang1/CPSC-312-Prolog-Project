@@ -54,14 +54,6 @@ q(Ans) :-
     read_line_to_string(user_input, St),
     split_string(St, " ", " ,?.!-", Ln), % ignore punctuation
     question(Ln, Ans).
-/*
-q(Ans) :-
-    write("No more answers or invalid query\n"),
-    write("Would you like to exit? "), flush_output(current_output),
-    read_line_to_string(user_input, St0),
-    string_lower(St0, St),
-    q(St, Ans).
-*/
 
 start(Ans) :-
     write("\nList of commands:\n"),
