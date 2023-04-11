@@ -2,7 +2,8 @@
 
 ## Steps to run: 
 
-`[api].`  
+`[api].` 
+`[query_question].`
 `[pokedex].`  
 `start(Ans).`  
 
