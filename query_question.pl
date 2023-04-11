@@ -14,7 +14,13 @@ pp([L0 | L1], Individual) :-
 
 reln([PokemonType, "type"], Individual) :- 
     string_lower(PokemonType, LowerCasePokemonType),
-    queryAllPokemonFromType(LowerCasePokemonType, Individual).
+    catch((
+        queryAllPokemonFromType(LowerCasePokemonType, Individual)
+    ), Error, (
+        write("Invalid input. Error: "),
+        write(Error),
+        fail
+    )).
 
 reln([Pokemon], Individual) :- 
     string_lower(Pokemon, LowerCasePokemon),
@@ -26,7 +32,13 @@ det(L, L).
 
 noun([L], Result) :- 
     string_lower(L, LowerCaseL),
-    queryAllPokemonFromLocation(LowerCaseL, Result).
+    catch((
+        queryAllPokemonFromLocation(LowerCaseL, Result)
+    ), Error, (
+        write("Invalid input. Error: "),
+        write(Error),
+        fail
+    )).
 
 % a noun_phrase is a determiner followed by a noun
 noun_phrase(L0, Ind) :-

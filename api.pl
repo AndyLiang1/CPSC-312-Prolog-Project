@@ -36,7 +36,7 @@ queryAllPokemonFromType(Type, ListOfPokemons) :-
     parseAllPokemonFromType(Data.pokemon, ListOfPokemons).
 
 % Validates that Pokemon exists
-validate_pokemon(Pokemon) :-
+queryPokemonForEncounter(Pokemon) :-
     atomics_to_string(["https://pokeapi.co/api/v2/pokemon/", Pokemon], Request),
     http_get(Request, _, []).
 
@@ -50,8 +50,17 @@ getTypeFromKBOrQuery(Pokemon, Type) :- not(type(Pokemon, Type)), addPokemonToKB(
 getEncounter(E) :- encounter(E).
 
 addPokemonToKB(Pokemon) :-
-    queryLocationsOfPokemon(Pokemon),
-    queryTypesOfPokemon(Pokemon).
+    catch(
+        (
+            queryLocationsOfPokemon(Pokemon),
+            queryTypesOfPokemon(Pokemon)
+        ), Error, 
+        (
+            write('An error occurred: '), write(Error),
+            fail
+        )
+    ).
+    
 
 addEncounter(L0, Ind) :-
     string_lower(L0, L1),
@@ -60,9 +69,19 @@ addEncounter(L0, Ind) :-
 addEncounter(L0, Ind) :-
     string_lower(L0, L1),
     not(encounter(L1)),
-    validate_pokemon(L1),
-    insertEncounterIntoKnowledgeBase(L1),
-    string_to_atom("success", Ind).
+    catch(
+        (   
+            queryPokemonForEncounter(L1),
+            insertEncounterIntoKnowledgeBase(L1),
+            string_to_atom("success", Ind)
+        ),
+        Error,
+        (   
+            write('An error occurred: '), write(Error),
+            fail
+        )
+    ).
+
 
 not(P) :- P, !, fail ; true.
 
